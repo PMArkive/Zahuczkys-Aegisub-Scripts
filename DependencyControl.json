@@ -33,14 +33,14 @@
 			"fileBaseUrl": "@{fileBaseUrl}/@{channel}/macros/aegi-color-track/@{namespace}",
 			"channels": {
 				"main": {
-					"version": "2.1.1",
+					"version": "2.1.2",
 					"released": "2025-11-15",
 					"default": true,
 					"files": [
 						{
 							"name": ".lua",
 							"url": "@{fileBaseUrl}@{fileName}",
-							"sha1": "2480f4f6d1d81c420ca27a38317a73085f6c9122"
+							"sha1": "96476554290ff02a142ca6bd609c89fcaf7dd586"
 						}
 					],
 					"requiredModules": [
