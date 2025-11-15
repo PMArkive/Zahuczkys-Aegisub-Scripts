@@ -267,26 +267,25 @@ local function removeConflictingTags(text, res, mode)
     if res.c4 then
       firstBlock = firstBlock:gsub("\\4c&H[%x]+&?", "")
     end
-    elseif mode == "Alpha" then
-      if res.all then
-        firstBlock = firstBlock:gsub("\\alpha&H[%x]+&?", "")
+  elseif mode == "Alpha" then
+    if res.all then
+      firstBlock = firstBlock:gsub("\\alpha&H[%x]+&?", "")
+      firstBlock = firstBlock:gsub("\\1a&H[%x]+&?", "")
+      firstBlock = firstBlock:gsub("\\2a&H[%x]+&?", "")
+      firstBlock = firstBlock:gsub("\\3a&H[%x]+&?", "")
+      firstBlock = firstBlock:gsub("\\4a&H[%x]+&?", "")
+    else
+      if res.a then
         firstBlock = firstBlock:gsub("\\1a&H[%x]+&?", "")
+      end
+      if res.a2 then
         firstBlock = firstBlock:gsub("\\2a&H[%x]+&?", "")
+      end
+      if res.a3 then
         firstBlock = firstBlock:gsub("\\3a&H[%x]+&?", "")
+      end
+      if res.a4 then
         firstBlock = firstBlock:gsub("\\4a&H[%x]+&?", "")
-      else
-        if res.a then
-          firstBlock = firstBlock:gsub("\\1a&H[%x]+&?", "")
-        end
-        if res.a2 then
-          firstBlock = firstBlock:gsub("\\2a&H[%x]+&?", "")
-        end
-        if res.a3 then
-          firstBlock = firstBlock:gsub("\\3a&H[%x]+&?", "")
-        end
-        if res.a4 then
-          firstBlock = firstBlock:gsub("\\4a&H[%x]+&?", "")
-        end
       end
     end
   end
