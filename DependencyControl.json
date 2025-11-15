@@ -33,14 +33,14 @@
 			"fileBaseUrl": "@{fileBaseUrl}/@{channel}/macros/aegi-color-track/@{namespace}",
 			"channels": {
 				"main": {
-					"version": "2.1.0",
-					"released": "2024-06-16",
+					"version": "2.1.1",
+					"released": "2025-11-15",
 					"default": true,
 					"files": [
 						{
 							"name": ".lua",
 							"url": "@{fileBaseUrl}@{fileName}",
-							"sha1": "b3042872be02294e89c61c7503777a87291519bf"
+							"sha1": "47db28d27247f6656d25fcf8c6619849a7cfad93"
 						}
 					],
 					"requiredModules": [
@@ -78,6 +78,9 @@
 				],
 				"2.1.0": [
 					"Add alpha tracking mode"
+				],
+				"2.1.1": [
+					"Get rid of conflicting colors/alpha tags in the tag block where the transform is placed."
 				]
 			}
 		},
