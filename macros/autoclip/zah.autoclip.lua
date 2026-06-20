@@ -63,6 +63,12 @@ local DepCtrl = require("l0.DependencyControl")({
             version = "1.1.0",
             url = "https://github.com/Akatmks/Akatsumekusa-Aegisub-Scripts",
             feed = "https://raw.githubusercontent.com/Akatmks/Akatsumekusa-Aegisub-Scripts/master/DependencyControl.json"
+        },
+        {
+            "zah.aegisub-uv",
+            version = "0.0.1",
+            url = "https://github.com/Zahuczky/Zahuczkys-Aegisub-Scripts",
+            feed = "https://raw.githubusercontent.com/Zahuczky/Zahuczkys-Aegisub-Scripts/main/DependencyControl.json"
         }
     }
 })
@@ -79,6 +85,8 @@ adialog.join = adialog.join_dialog
 
 local outcome = require("aka.outcome")
 local ok, err = outcome.ok, outcome.err
+
+local aegisub_uv = require("zah.aegisub-uv")
 
 local VSREPO_IN_PATH = "vsrepo in PATH (`$ vsrepo --help`)"
 local PATH_TO_VSREPO_OLD = "Path to vsrepo.py (`$ python vsrepo.py --help`)"
@@ -153,6 +161,94 @@ local run_cmd_c = acommand.run_cmd_c
 local c = acommand.c
 local p = acommand.p
 
+
+local autoclip_env
+
+local get_autoclip_env = function()
+    if autoclip_env then
+        return autoclip_env
+    end
+
+    local uv = aegisub_uv.new()
+
+    autoclip_env = uv:env({
+        id = "zah.autoclip",
+        python = "3.12",
+        packages = {
+            "numpy",
+            "PySide6",
+            "scikit-image",
+            "vapoursynth",
+            "vsrepo",
+            "ass-autoclip==" .. script_version,
+        },
+        checks = {
+            imports = {
+                "numpy",
+                "PySide6",
+                "skimage",
+                "vapoursynth",
+                "vsrepo",
+                "ass_autoclip",
+            },
+        },
+    })
+
+    return autoclip_env
+end
+
+local function q(value)
+    return '"' .. tostring(value) .. '"'
+end
+
+local load_config_main = function()
+    if not config then
+        config = aconfig:read_and_validate_config_if_empty_then_default_or_else_edit_and_save("zah.autoclip", validation_func)
+            :ifErr(aegisub.cancel)
+            :unwrap()
+    end
+end
+
+local function ensure_autoclip_vs_plugins(env)
+    local result
+
+    result = env:run_script("vapoursynth", "config")
+    if result.exit_code ~= 0 then return result end
+
+    result = env:run_script("vsrepo", "update")
+    if result.exit_code ~= 0 then return result end
+
+    result = env:run_script("vsrepo", "install lsmas dfttest rgvs")
+    if result.exit_code ~= 0 then return result end
+
+    result = env:run_script("vsrepo", "upgrade lsmas dfttest rgvs")
+    return result
+end
+
+local ensure_autoclip_env_main = function()
+    local env = get_autoclip_env()
+    if not env then
+        aegisub.debug.out("[zah.autoclip] Failed to create AutoClip uv environment.\n")
+        aegisub.cancel()
+    end
+
+    local result = env:ensure()
+    if result.exit_code ~= 0 then
+        aegisub.debug.out("[zah.autoclip] Failed to prepare AutoClip Python environment:\n")
+        aegisub.debug.out(tostring(result.output) .. "\n")
+        aegisub.debug.out(tostring(result.reason) .. "\n")
+        aegisub.cancel()
+    end
+
+    local vs_result = ensure_autoclip_vs_plugins(env)
+    if vs_result.exit_code ~= 0 then
+        aegisub.debug.out("[zah.autoclip] Failed to prepare VapourSynth plugins:\n")
+        aegisub.debug.out(tostring(vs_result.output) .. "\n")
+        aegisub.cancel()
+    end
+
+    return env
+end
 
 
 -- display_configurator and display_configurator derived functions
@@ -729,7 +825,7 @@ local clip_set = err("Not set")
 local clip_set_first
 local clip_set_last
 local clip_set_main = function(sub, sel, act)
-    first_time_python_vsrepo_main()
+    -- first_time_python_vsrepo_main()
 
     local ass = Ass(sub, sel, act)
 
@@ -737,7 +833,7 @@ local clip_set_main = function(sub, sel, act)
     local first, last, active, active_clip, clip = clip_gather_main(ass)
     local act_clip = err("Not found")
     local act_line = Line.process(ass, sub[act])
-    if act_line.data["clip"] == "table" then
+    if type(act_line.data["clip"]) == "table" then
         act_clip = ok(act_line.data["clip"])
     end
 
@@ -811,7 +907,8 @@ local clip_set_main = function(sub, sel, act)
 end end
 
 local autoclip_main = function(sub, sel, act)
-    first_time_python_vsrepo_main()
+    -- first_time_python_vsrepo_main()
+    load_config_main()
 
     local ass = Ass(sub, sel, act)
 
@@ -820,6 +917,8 @@ local autoclip_main = function(sub, sel, act)
         aegisub.debug.out("[zah.autoclip] AutoClip requires a video to be loaded for clipping.\n")
         aegisub.cancel()
     end
+
+    local env = ensure_autoclip_env_main()
 
     -- Grab frame and clip information and check frame continuity across subtitle lines
     Aegi.progressTitle("Gathering frame information")
@@ -984,39 +1083,34 @@ local autoclip_main = function(sub, sel, act)
     local output
     
     output_file = aegisub.decode_path("?temp/zah.autoclip." .. string.sub(tostring(math.random(10000000, 99999999)), 2) .. ".json")
-    if jit.os == "Windows" then
-        command = config["venv_activate"] ~= "" and p(config["venv_activate"]) .. "\n" or ""
-    else
-        command = config["venv_activate"] ~= "" and "source " .. p(config["venv_activate"]) .. "\n" or ""
-    end
-    command = command ..
-              p(config["python"]) .. " -m ass_autoclip" ..
-                                     " --input " .. p(video_file) ..
-                                     " --output " .. p(output_file) ..
-                       string.format(" --clip '%f %f %f %f'", clip[1], clip[2], clip[3], clip[4]) ..
-                                     " --first " .. first ..
-                                     " --last " .. last ..
-                                     " --active " .. active ..
-                                     " --supported-version " .. ((not disable_version_notify_until_next_time and not config["disable_version_notify"]) and
-                                                                 script_version or
-                                                                 last_supported_script_version)
-    log, status, terminate, code = run_cmd_c(command)
+
+    local args =
+        " --input " .. q(video_file) ..
+        " --output " .. q(output_file) ..
+        string.format(' --clip "%f %f %f %f"', clip[1], clip[2], clip[3], clip[4]) ..
+        " --first " .. first ..
+        " --last " .. last ..
+        " --active " .. active ..
+        " --supported-version " .. ((not disable_version_notify_until_next_time and not config["disable_version_notify"]) and
+                                    script_version or
+                                    last_supported_script_version)
+
+    command = "python -m ass_autoclip" .. args
+
+    local result = env:run_module("ass_autoclip", args)
+
+    log = result.output
+    status = result.status
+    terminate = result.reason
+    code = result.exit_code
 
     Aegi.progressCancelled()
     Aegi.progressTitle("Parsing output from Python")
     if not status then
-        if no_dependencies_main() ~= "Already satisfied" then
-            goto run_again
-        end
-
-        if terminate == "exit" then
-            aegisub.debug.out("[zah.autoclip] Python exits with code " .. tostring(code) .. ":\n")
-        else
-            aegisub.debug.out("[zah.autoclip] Python terminated with signal " .. tostring(code) .. ":\n")
-        end
-        aegisub.debug.out("[zah.autoclip] " .. c(command) .. "\n")
-        aegisub.debug.out(log)
-        aegisub.debug.out("[zah.autoclip] Attempting to continue.\n")
+        aegisub.debug.out("[zah.autoclip] Python exits with code " .. tostring(code) .. ":\n")
+        aegisub.debug.out("[zah.autoclip] " .. command .. "\n")
+        aegisub.debug.out(log or "")
+        aegisub.cancel()
     end
 
     -- Open output file
@@ -1037,12 +1131,12 @@ local autoclip_main = function(sub, sel, act)
 
     if type(output["clip"]) ~= "table" then
         if output["current_version"] then
-            if V(output["current_version"]) < V(last_supported_script_version) then
-                unsupported_dependencies_main()
-            elseif V(output["current_version"]) < V(script_version) then
-                out_of_date_dependencies_main()
-            else
-                error("Unexpected error")
+            aegisub.debug.out("[zah.autoclip] Python package version mismatch. Reinstalling AutoClip environment.\n")
+            local install_result = env:install()
+            if install_result.exit_code ~= 0 then
+                aegisub.debug.out("[zah.autoclip] Failed to reinstall AutoClip Python package:\n")
+                aegisub.debug.out(tostring(install_result.output) .. "\n")
+                aegisub.cancel()
             end
             goto run_again
         else
@@ -1163,32 +1257,16 @@ local autoclip_main = function(sub, sel, act)
 end
 
 local update_dependencies_main = function()
-    first_time_python_vsrepo_main()
-
-    if jit.os == "Windows" then
-        ok():andThen(update_dependencies_win)
-            :ifErr(aegisub.cancel)
-    else
-        if update_precheck_vs_dependencies_unix() then
-            ok():andThen(update_python_dependencies_unix)
-                :andThen(update_vs_dependencies_unix)
-                :ifErr(aegisub.cancel)
-        else
-            ok():andThen(update_python_dependencies_unix)
-                :andThen(no_vs_dependencies_unix)
-                :ifErr(aegisub.cancel)
-end end end
+    load_config_main()
+    ensure_autoclip_env_main()
+end
 
 local edit_config_main = function()
-    first_time_python_vsrepo_main()
+    load_config_main()
 
-    if jit.os == "Windows" then
-        ok():andThen(edit_config_win)
-            :ifErr(aegisub.cancel)
-    else
-        ok():andThen(edit_config_unix)
-            :ifErr(aegisub.cancel)
-end end
+    display_configurator(dialog_two_warnings, buttons_apply_close)
+        :ifErr(aegisub.cancel)
+end
 
 
 DepCtrl:registerMacros({
