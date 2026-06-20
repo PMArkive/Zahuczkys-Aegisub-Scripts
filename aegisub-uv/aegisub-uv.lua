@@ -72,7 +72,7 @@ local function print_run_cmd_result(result)
   aegisub.debug.out("status: %s\n", tostring(result.status))
   aegisub.debug.out("reason: %s\n", tostring(result.reason))
   aegisub.debug.out("exit_code: %s\n", tostring(result.exit_code))
-end   
+end
 
 local UvManager = {}
 UvManager.__index = UvManager
@@ -89,7 +89,8 @@ function UvManager:new()
 
   setmetatable(obj, self)
 
-  aegisub.debug.out("UvManager initialized with provider kind: " .. (obj.config.configuration.provider.kind or "unset") .. "\n")
+  aegisub.debug.out("UvManager initialized with provider kind: " ..
+  (obj.config.configuration.provider.kind or "unset") .. "\n")
   debug_enabled = obj.config.configuration.debug.enabled or false
 
   return obj
@@ -138,49 +139,68 @@ function UvManager:select_system_or_managed_uv_dialog(systemUv, managedUv)
   local select_system_or_managed_uv = {
     main_label = {
       class = "label",
-      x = 0, y = 0, width = 4, height = 1,
+      x = 0,
+      y = 0,
+      width = 4,
+      height = 1,
       label = "Select uv provider kind:"
     },
 
     system_uv_status = {
       class = "label",
-      x = 0, y = 1, width = 4, height = 1,
+      x = 0,
+      y = 1,
+      width = 4,
+      height = 1,
       label = "System uv: " .. (systemUv and "found" or "not found")
     },
 
     managed_uv_status = {
       class = "label",
-      x = 0, y = 2, width = 4, height = 1,
+      x = 0,
+      y = 2,
+      width = 4,
+      height = 1,
       label = "Managed uv: " .. (managedUv and "found" or "not found")
     },
 
     recommended_label = {
       class = "label",
-      x = 0, y = 4, width = 4, height = 1,
+      x = 0,
+      y = 4,
+      width = 4,
+      height = 1,
       label = "Managed uv is recommended for most users."
     },
 
     warning_label = {
       class = "label",
-      x = 0, y = 5, width = 4, height = 2,
+      x = 0,
+      y = 5,
+      width = 4,
+      height = 2,
       label = "Choose system uv only if you know what you are doing and uv is available in PATH."
     },
 
     download_notice_label = {
       class = "label",
-      x = 0, y = 7, width = 4, height = 3,
-      label = "If you choose managed uv and it is not found, it will be downloaded inside Aegisub. It will not conflict with other Python or uv installations."
+      x = 0,
+      y = 7,
+      width = 4,
+      height = 3,
+      label =
+      "If you choose managed uv and it is not found, it will be downloaded inside Aegisub. It will not conflict with other Python or uv installations."
     },
   }
 
-  local btn, res = aegisub.dialog.display(select_system_or_managed_uv, {"system_uv_button", "managed_uv_button", "close_button"})
+  local btn, res = aegisub.dialog.display(select_system_or_managed_uv,
+    { "system_uv_button", "managed_uv_button", "close_button" })
   if btn == "system_uv_button" then
     self:set_provider_kind("system")
     return "system"
   end
 
   if btn == "managed_uv_button" then
-
     -- if managedUv is not found, download and install it
     if not managedUv then
       local download_url = "https://releases.astral.sh/github/uv/releases/download/0.11.23/uv-x86_64-pc-windows-msvc.zip"
@@ -188,18 +208,23 @@ function UvManager:select_system_or_managed_uv_dialog(systemUv, managedUv)
       local zip_file = aegisub.decode_path(zah_root .. "/uv.zip")
 
       -- download the zip file
-      local output, status, reason, exit_code = petzutil.io.run_cmd('curl -L -o "' .. zip_file .. '" "' .. download_url .. '"', debug_enabled)
+      local output, status, reason, exit_code = petzutil.io.run_cmd(
+      'curl -L -o "' .. zip_file .. '" "' .. download_url .. '"', debug_enabled)
       if not status or exit_code ~= 0 then
         aegisub.debug.out("Failed to download managed uv: " .. (reason or "unknown error") .. "\n")
-        aegisub.dialog.display({{class = "label", label = "Failed to download managed uv: " .. (reason or "unknown error")}}, {"OK"})
+        aegisub.dialog.display(
+        { { class = "label", label = "Failed to download managed uv: " .. (reason or "unknown error") } }, { "OK" })
         return nil
       end
 
       -- unzip the file
-      local output, status, reason, exit_code = petzutil.io.run_cmd('powershell -Command "Expand-Archive -Path \'' .. zip_file .. '\' -DestinationPath \'' .. zah_uv_dir .. '\'"', debug_enabled)
+      local output, status, reason, exit_code = petzutil.io.run_cmd(
+      'powershell -Command "Expand-Archive -Path \'' .. zip_file .. '\' -DestinationPath \'' .. zah_uv_dir .. '\'"',
+        debug_enabled)
       if not status or exit_code ~= 0 then
         aegisub.debug.out("Failed to unzip managed uv: " .. (reason or "unknown error") .. "\n")
-        aegisub.dialog.display({{class = "label", label = "Failed to unzip managed uv: " .. (reason or "unknown error")}}, {"OK"})
+        aegisub.dialog.display(
+        { { class = "label", label = "Failed to unzip managed uv: " .. (reason or "unknown error") } }, { "OK" })
         return nil
       end
 
@@ -218,10 +243,9 @@ function UvManager:select_system_or_managed_uv_dialog(systemUv, managedUv)
   end
 
   return nil
-end 
+end
 
 function UvManager:run_uv(args)
-
   -- check if uv is managed of system
   local kind = self:get_provider_kind()
 
@@ -237,12 +261,11 @@ function UvManager:run_uv(args)
       reason = reason,
       exit_code = exit_code,
     }
-    
   end
 
   if kind == "managed" then
     -- run uv from managed path
-    local uv_executable = aegisub.decode_path(zah_root .. "/"..uv_exe)
+    local uv_executable = aegisub.decode_path(zah_root .. "/" .. uv_exe)
     local output, status, reason, exit_code = petzutil.io.run_cmd('"' .. uv_executable .. '" ' .. args, debug_enabled)
     -- if exit_code ~= 0 then
     --   self:select_system_or_managed_uv_dialog(self:findSystemUv(), self:findManagedUv())
@@ -256,14 +279,12 @@ function UvManager:run_uv(args)
   end
 
   return {
-  output = "",
-  status = false,
-  reason = "invalid provider kind: " .. tostring(kind),
-  exit_code = -1,
-}
-
+    output = "",
+    status = false,
+    reason = "invalid provider kind: " .. tostring(kind),
+    exit_code = -1,
+  }
 end
-
 
 function UvManager:ensure_provider()
   local kind = self.config.configuration.provider.kind
@@ -360,7 +381,6 @@ function UvEnv:id()
   return self.spec.id
 end
 
-
 function UvEnv:venv_dir()
   if self:id() then
     return aegisub.decode_path(venv_root .. "/" .. self:id() .. "/" .. ".venv")
@@ -373,7 +393,6 @@ function UvEnv:python_exe()
   else
     return self:venv_dir() .. "/bin/python"
   end
-
 end
 
 function UvEnv:script_exe(name)
@@ -386,7 +405,7 @@ end
 
 function UvEnv:run_script(name, args)
   local output, status, reason, exit_code =
-    petzutil.io.run_cmd('"' .. self:script_exe(name) .. '" ' .. args, debug_enabled)
+      petzutil.io.run_cmd('"' .. self:script_exe(name) .. '" ' .. args, debug_enabled)
 
   return {
     output = output,
@@ -426,7 +445,7 @@ function UvEnv:run_python(args)
   local python_exe = self:python_exe()
 
   local output, status, reason, exit_code =
-    petzutil.io.run_cmd('"' .. python_exe .. '" ' .. args, debug_enabled)
+      petzutil.io.run_cmd('"' .. python_exe .. '" ' .. args, debug_enabled)
 
   return {
     output = output,
@@ -435,7 +454,6 @@ function UvEnv:run_python(args)
     exit_code = exit_code,
   }
 end
-
 
 function UvEnv:install()
   if #self.spec.packages == 0 then
@@ -508,15 +526,8 @@ function UvEnv:run_module(module, args)
   -- "<python_exe>" -m <module> <args>
   local result = self:run_python("-m " .. module .. " " .. args)
   print_run_cmd_result(result)
-  return result  
+  return result
 end
-
-
-
-
-
-
-
 
 local M = {}
 
